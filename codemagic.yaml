@@ -8,6 +8,8 @@ workflows:
     scripts:
       - name: Generar carpetas nativas faltantes (android/ios)
         script: flutter create --org com.castillo --project-name planos_castillo .
+      - name: Configurar firma consistente (para actualizar sin desinstalar)
+        script: python3 scripts/configurar_firma.py
       - name: Instalar dependencias
         script: flutter pub get
       - name: Analizar código
