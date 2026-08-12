@@ -89,7 +89,6 @@ class Vista3DPainter extends CustomPainter {
       text: const TextSpan(
         text: 'Dibuja al menos un muro en el plano 2D\npara ver la maqueta 3D',
         style: TextStyle(color: Colors.grey, fontSize: 14),
-        textAlign: TextAlign.center,
       ),
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
@@ -104,7 +103,7 @@ class Vista3DPainter extends CustomPainter {
     final p0 = muro.puntos[0];
     final p1 = muro.puntos[1];
     final dir = p1 - p0;
-    final distancia = dir.distance == 0 ? 1 : dir.distance;
+    final double distancia = dir.distance == 0 ? 1.0 : dir.distance;
     final normal = Offset(-dir.dy, dir.dx) / distancia;
     final espesorPx = (muro.espesorCm / 100) * pixelesPorMetro;
     final mitad = normal * (espesorPx / 2);
