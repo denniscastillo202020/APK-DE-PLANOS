@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/models/elemento_plano.dart';
-import '../../../core/models/tipo_elemento.dart';
+import '../../../../core/models/elemento_plano.dart';
+import '../../../../core/models/tipo_elemento.dart';
 
 @immutable
 class EstadoEditor {
@@ -9,10 +9,6 @@ class EstadoEditor {
   final TipoElemento? herramientaActiva;
   final Set<Capa> capasVisibles;
 
-  /// Interruptor global: cuando es true, los elementos estructurales
-  /// (columna, viga, losa) se dibujan SOLO con su armado (esqueleto),
-  /// sin el relleno de concreto — ver toda la estructura conectada
-  /// como una "radiografía", no elemento por elemento.
   final bool verSoloEsqueleto;
 
   const EstadoEditor({
