@@ -2,9 +2,12 @@ workflows:
   planos-castillo-android:
     name: PLANOS CASTILLO - Android
     max_build_duration: 30
+    instance_type: mac_mini_m2
     environment:
       flutter: stable
     scripts:
+      - name: Generar carpetas nativas faltantes (android/ios)
+        script: flutter create --org com.castillo --project-name planos_castillo .
       - name: Instalar dependencias
         script: flutter pub get
       - name: Analizar código
