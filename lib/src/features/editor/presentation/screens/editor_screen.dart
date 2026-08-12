@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/canvas/imantado.dart';
 import '../../../../core/canvas/plano_painter.dart';
 import '../../../../core/models/tipo_elemento.dart';
+import '../../../vista3d/presentation/screens/vista3d_screen.dart';
 import '../providers/editor_notifier.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
@@ -15,6 +17,7 @@ class EditorScreen extends ConsumerStatefulWidget {
 class _EditorScreenState extends ConsumerState<EditorScreen> {
   Offset? _puntoInicial;
   Offset? _puntoActual;
+  final TransformationController _controladorZoom = TransformationController();
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +28,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       appBar: AppBar(
         title: const Text('PLANOS CASTILLO'),
         actions: [
+          IconButton(
+            tooltip: 'Vista 3D de los muros',
+            icon: const Icon(Icons.view_in_ar_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => Vista3DScreen(elementos: estado.elementos),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: estado.verSoloEsqueleto ? 'Mostrar concreto' : 'Ver solo esqueleto',
             icon: Icon(estado.verSoloEsqueleto ? Icons.visibility : Icons.visibility_outlined),
@@ -51,37 +63,44 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               ),
             ),
           Expanded(
-            child: GestureDetector(
-              onPanStart: (details) {
-                if (estado.herramientaActiva == null) return;
-                setState(() {
-                  _puntoInicial = details.localPosition;
-                  _puntoActual = details.localPosition;
-                });
-              },
-              onPanUpdate: (details) {
-                if (_puntoInicial == null) return;
-                setState(() => _puntoActual = details.localPosition);
-              },
-              onPanEnd: (details) {
-                if (_puntoInicial == null || _puntoActual == null) return;
-                final tipo = estado.herramientaActiva!;
-                final puntos = tipo == TipoElemento.columna
-                    ? [_puntoInicial!]
-                    : [_puntoInicial!, _puntoActual!];
-                notifier.agregarElemento(puntos, espesorCm: _espesorPorDefecto(tipo));
-                setState(() {
-                  _puntoInicial = null;
-                  _puntoActual = null;
-                });
-              },
-              child: CustomPaint(
-                painter: PlanoPainter(
-                  elementos: estado.elementos,
-                  capasVisibles: estado.capasVisibles,
-                  verSoloEsqueleto: estado.verSoloEsqueleto,
+            child: InteractiveViewer(
+              transformationController: _controladorZoom,
+              minScale: 0.5,
+              maxScale: 4,
+              child: GestureDetector(
+                onPanStart: (details) {
+                  if (estado.herramientaActiva == null) return;
+                  final punto = aplicarImantado(details.localPosition, estado.elementos);
+                  setState(() {
+                    _puntoInicial = punto;
+                    _puntoActual = punto;
+                  });
+                },
+                onPanUpdate: (details) {
+                  if (_puntoInicial == null) return;
+                  final punto = aplicarImantado(details.localPosition, estado.elementos);
+                  setState(() => _puntoActual = punto);
+                },
+                onPanEnd: (details) {
+                  if (_puntoInicial == null || _puntoActual == null) return;
+                  final tipo = estado.herramientaActiva!;
+                  final puntos = tipo == TipoElemento.columna
+                      ? [_puntoInicial!]
+                      : [_puntoInicial!, _puntoActual!];
+                  notifier.agregarElemento(puntos, espesorCm: _espesorPorDefecto(tipo));
+                  setState(() {
+                    _puntoInicial = null;
+                    _puntoActual = null;
+                  });
+                },
+                child: CustomPaint(
+                  painter: PlanoPainter(
+                    elementos: estado.elementos,
+                    capasVisibles: estado.capasVisibles,
+                    verSoloEsqueleto: estado.verSoloEsqueleto,
+                  ),
+                  size: const Size(2000, 2000),
                 ),
-                size: Size.infinite,
               ),
             ),
           ),

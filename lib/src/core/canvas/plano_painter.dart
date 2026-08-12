@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/elemento_plano.dart';
 import '../models/tipo_elemento.dart';
 
-/// Convierte metros del plano a píxeles de pantalla. Un factor simple
-/// de escala visual — no hay precisión CAD milimétrica, es un editor
-/// rápido de anteproyecto.
 const double pixelesPorMetro = 60;
 
 class PlanoPainter extends CustomPainter {
@@ -71,6 +68,10 @@ class PlanoPainter extends CustomPainter {
       ..strokeWidth = (e.espesorCm / 100) * pixelesPorMetro
       ..strokeCap = StrokeCap.square;
     canvas.drawLine(e.puntos[0], e.puntos[1], paint);
+
+    final nodo = Paint()..color = Colors.blueGrey.shade700;
+    canvas.drawCircle(e.puntos[0], 3, nodo);
+    canvas.drawCircle(e.puntos[1], 3, nodo);
   }
 
   void _dibujarColumna(Canvas canvas, ElementoPlano e, bool ocultarConcreto) {
@@ -91,27 +92,40 @@ class PlanoPainter extends CustomPainter {
     }
 
     if (e.armado != null) {
-      _dibujarVarillasColumna(canvas, rect, e.armado!.cantidadVarillasLongitudinales);
+      _dibujarArmadoColumna(canvas, rect, e.armado!.cantidadVarillasLongitudinales);
     }
   }
 
-  void _dibujarVarillasColumna(Canvas canvas, Rect rect, int cantidad) {
-    final paint = Paint()
-      ..color = Colors.red.shade700
-      ..style = PaintingStyle.fill;
-    // Distribuye las varillas en las esquinas / bordes del cuadro —
-    // representación esquemática, no un armado calculado a detalle.
-    final puntos = <Offset>[
-      rect.topLeft + const Offset(4, 4),
-      rect.topRight + const Offset(-4, 4),
-      rect.bottomLeft + const Offset(4, -4),
-      rect.bottomRight + const Offset(-4, -4),
+  void _dibujarArmadoColumna(Canvas canvas, Rect rect, int cantidad) {
+    final estribo = rect.deflate(rect.shortestSide * 0.12);
+
+    canvas.drawRect(
+      estribo,
+      Paint()
+        ..color = Colors.red.shade600
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+
+    final puntosEsquina = <Offset>[
+      estribo.topLeft,
+      estribo.topRight,
+      estribo.bottomLeft,
+      estribo.bottomRight,
     ];
-    for (var i = 0; i < cantidad && i < puntos.length; i++) {
-      canvas.drawCircle(puntos[i], 3, paint);
+    final paintVarilla = Paint()..color = Colors.red.shade900;
+    final radio = (rect.shortestSide * 0.09).clamp(2.5, 6.0);
+    for (var i = 0; i < cantidad && i < puntosEsquina.length; i++) {
+      canvas.drawCircle(puntosEsquina[i], radio, paintVarilla);
+      canvas.drawCircle(
+        puntosEsquina[i],
+        radio,
+        Paint()
+          ..color = Colors.black87
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8,
+      );
     }
-    // Estribo esquemático (cuadro punteado interior).
-    _dibujarLineaPunteada(canvas, rect.deflate(4), Colors.red.shade300);
   }
 
   void _dibujarViga(Canvas canvas, ElementoPlano e, bool ocultarConcreto) {
@@ -128,18 +142,27 @@ class PlanoPainter extends CustomPainter {
       );
     }
 
-    // Varillas longitudinales de la viga: dos líneas paralelas
-    // (superior/inferior) siguiendo el eje de la viga.
-    final paint = Paint()
-      ..color = Colors.red.shade700
+    final dir = e.puntos[1] - e.puntos[0];
+    if (dir.distance == 0) return;
+    final normal = Offset(-dir.dy, dir.dx) / dir.distance;
+    final offsetVarilla = normal * (grosor / 2 - 4).clamp(2.0, grosor);
+
+    final paintVarilla = Paint()
+      ..color = Colors.red.shade900
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(e.puntos[0] + offsetVarilla, e.puntos[1] + offsetVarilla, paintVarilla);
+    canvas.drawLine(e.puntos[0] - offsetVarilla, e.puntos[1] - offsetVarilla, paintVarilla);
+
+    final cantidadEstribos = (dir.distance / (pixelesPorMetro * 0.25)).clamp(2, 30).toInt();
+    final paintEstribo = Paint()
+      ..color = Colors.red.shade600
       ..strokeWidth = 1.5;
-    final dir = (e.puntos[1] - e.puntos[0]);
-    final normal = Offset(-dir.dy, dir.dx).distance == 0
-        ? const Offset(0, 1)
-        : Offset(-dir.dy, dir.dx) / dir.distance;
-    final offsetVarilla = normal * (grosor / 2 - 3);
-    canvas.drawLine(e.puntos[0] + offsetVarilla, e.puntos[1] + offsetVarilla, paint);
-    canvas.drawLine(e.puntos[0] - offsetVarilla, e.puntos[1] - offsetVarilla, paint);
+    for (var i = 0; i <= cantidadEstribos; i++) {
+      final t = i / cantidadEstribos;
+      final centro = Offset.lerp(e.puntos[0], e.puntos[1], t)!;
+      canvas.drawLine(centro + offsetVarilla, centro - offsetVarilla, paintEstribo);
+    }
   }
 
   void _dibujarLosa(Canvas canvas, ElementoPlano e, bool ocultarConcreto) {
@@ -149,12 +172,23 @@ class PlanoPainter extends CustomPainter {
     if (!ocultarConcreto) {
       canvas.drawRect(rect, Paint()..color = Colors.grey.shade300.withValues(alpha: 0.6));
     }
+
+    final paintMalla = Paint()
+      ..color = Colors.red.shade400
+      ..strokeWidth = 1;
+    const paso = 20.0;
+    for (double x = rect.left; x <= rect.right; x += paso) {
+      canvas.drawLine(Offset(x, rect.top), Offset(x, rect.bottom), paintMalla);
+    }
+    for (double y = rect.top; y <= rect.bottom; y += paso) {
+      canvas.drawLine(Offset(rect.left, y), Offset(rect.right, y), paintMalla);
+    }
     canvas.drawRect(
       rect,
       Paint()
-        ..color = Colors.red.shade300
+        ..color = Colors.red.shade700
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+        ..strokeWidth = 1.5,
     );
   }
 
@@ -182,14 +216,6 @@ class PlanoPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
-  }
-
-  void _dibujarLineaPunteada(Canvas canvas, Rect rect, Color color) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    canvas.drawRect(rect, paint);
   }
 
   @override
